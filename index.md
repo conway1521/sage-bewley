@@ -10,7 +10,7 @@ kernelspec:
   name: julia-sage-1.7
 ---
 
-# Wellbeing and Macroeconomics: a SAGE approach
+# Wellbeing and Macroeconomics: A SAGE Approach
 
 ```{contents} Contents
 :depth: 2
@@ -24,8 +24,8 @@ premise, namely that personal welfare depends on more than consumption, and that
 of its other determinants are shaped by economic choices in ways a standard model does
 not record.
 
-To make that idea operational we use the **SAGE framework** of Snower and Lima de
-Miranda, in which wellbeing has separate dimensions:
+To make that idea operational we use the **SAGE framework** of
+{cite:t}`limademiranda2020`, in which wellbeing has separate dimensions:
 
 | | dimension | how it enters the model |
 |---|---|---|
@@ -45,12 +45,20 @@ idea at a time.
    distribution of households facing uninsurable risk, and asks what an activation
    policy does to the separate dimensions of their wellbeing, and to whom.
 
-The background assumed is dynamic programming at the level of value function
-iteration, and enough Julia to read a loop. Every figure below is produced by the
-code shown. We begin by loading the packages and the model engine.
+The first two rungs are deliberately brief, because the QuantEcon lectures cover
+them in depth ([optimal growth](https://julia.quantecon.org/dynamic_programming/optgrowth.html),
+[finite Markov chains](https://julia.quantecon.org/introduction_dynamics/finite_markov.html));
+the destination is the fourth. The background assumed is dynamic programming at the
+level of value function iteration, and enough Julia to read a loop. Every figure
+below is produced by the code shown. We begin by loading the packages and the model
+engine, fetching the engine from the repository if the file is not next to the
+notebook, so the notebook runs anywhere.
 
 ```{code-cell} julia
-using QuantEcon, Plots, Statistics, Printf
+using QuantEcon, Plots, Statistics, Printf, Downloads
+isfile("sage_engine.jl") ||
+    Downloads.download("https://raw.githubusercontent.com/conway1521/sage-bewley/main/sage_engine.jl",
+                       "sage_engine.jl")
 include("sage_engine.jl")
 using .SAGEBewley
 gr(fmt = :png, size = (820, 300))
@@ -58,7 +66,7 @@ C1, C2, C3, C4 = "#1f77b4", "#ff7f0e", "#2ca02c", "#9467bd"
 BLUE, ORANGE = C1, C2;          # low income, high income (thesis colours)
 ```
 
-## The neoclassical growth model
+## The Neoclassical Growth Model
 
 A representative household maximises $\sum_{t} \beta^t \log c_t$ subject to the
 resource constraint
@@ -67,9 +75,12 @@ $$
 c_t + k_{t+1} = k_t^{\alpha} + (1-\delta) k_t .
 $$
 
-We solve it by value function iteration on a grid for capital. The same routine, with
-a larger state, carries the next two models; the Bewley model at the end switches to
-policy iteration.
+We solve it by value function iteration on a grid for capital, and keep the section
+to a minimum: QuantEcon's
+[optimal growth lecture](https://julia.quantecon.org/dynamic_programming/optgrowth.html)
+develops the model and the method properly, and its only job here is to set the
+pattern the next two models reuse. The Bewley model at the end switches to policy
+iteration.
 
 ```{code-cell} julia
 function solve_ncgm(; α=0.33, β=0.96, δ=0.10, nk=400, tol=1e-8, maxit=2000)
@@ -115,19 +126,21 @@ p2 = plot(1:T, cp, c=C1, lw=2, legend=false, title="Consumption path", xlabel="t
 plot(p1, p2, layout=(1,2))
 ```
 
-## The real business cycle model
+## The Real Business Cycle Model
 
 Now total factor productivity `z` follows a persistent AR(1) process, discretised
-with the Rouwenhorst method into a Markov chain, and the household chooses labour `n`.
-The state is `(k, z)` and the calibration is the standard quarterly one. We fold the
-intratemporal labour choice into the per-period reward, so value iteration stays a
-simple maximisation over next-period capital, and after convergence we recover
-continuous policies between grid points. That last step matters for what follows: the
-labour response to a shock is a fraction of a percent, smaller than the steps a
-discrete policy takes on any affordable grid, so without the recovery the labour
-figure would be showing the grid, not the model. The same routine will serve the
-SAGE-RBC once we switch on agency `αa` (the share of labour income retained) and a
-social-cohesion pull `Λ B` away from work.
+into a Markov chain with the Rouwenhorst method {cite}`rouwenhorst1995` (QuantEcon's
+[finite Markov chains lecture](https://julia.quantecon.org/introduction_dynamics/finite_markov.html)
+covers the toolkit), and the household chooses labour `n`. The state is `(k, z)` and
+the calibration is the standard quarterly one. We fold the intratemporal labour
+choice into the per-period reward, so value iteration stays a simple maximisation
+over next-period capital, and after convergence we recover continuous policies
+between grid points. That last step matters for what follows: the labour response to
+a shock is a fraction of a percent, smaller than the steps a discrete policy takes on
+any affordable grid, so without the recovery the labour figure would be showing the
+grid, not the model. The same routine will serve the SAGE-RBC once we switch on
+agency `αa` (the share of labour income retained) and a social-cohesion pull `Λ B`
+away from work.
 
 ```{code-cell} julia
 function solve_rbc(; α=1/3, β=0.984, δ=0.025, ψ=0.25, ρ=0.979, σ=0.0072,
@@ -229,12 +242,12 @@ function irf(m; shock=0.01, T=60)
     (; y=d(y,y_ss), c=d(c,c_ss), n=d(n,n_ss), iv=d(iv,i_ss), n_ss, c_ss, y_ss)
 end
 
-m_rbc = solve_rbc(); r = irf(m_rbc)
+m_rbc = solve_rbc(); r_rbc = irf(m_rbc)
 plot(title="RBC: impulse responses to a 1% productivity shock", xlabel="t", ylabel="percent")
-plot!(1:length(r.y), r.y, lw=2, label="output", c=C1)
-plot!(1:length(r.c), r.c, lw=2, label="consumption", c=C2)
-plot!(1:length(r.iv), r.iv, lw=2, label="investment", c=C3)
-plot!(1:length(r.n), r.n, lw=2, label="labour", c=C4)
+plot!(1:length(r_rbc.y), r_rbc.y, lw=2, label="output", c=C1)
+plot!(1:length(r_rbc.c), r_rbc.c, lw=2, label="consumption", c=C2)
+plot!(1:length(r_rbc.iv), r_rbc.iv, lw=2, label="investment", c=C3)
+plot!(1:length(r_rbc.n), r_rbc.n, lw=2, label="labour", c=C4)
 hline!([0], c=:black, lw=1, label=false)
 ```
 
@@ -251,11 +264,11 @@ problem later. We solve the same model with the switches on and compare the resp
 
 ```{code-cell} julia
 m_sage = solve_rbc(αa=0.85, Λ=0.30, B=0.85)
-rs = irf(m_sage)
+r_sage = irf(m_sage)
 @printf("steady-state hours: RBC %.4f, SAGE-RBC %.4f (%+.1f%%)\n",
-        r.n_ss, rs.n_ss, 100*(rs.n_ss/r.n_ss - 1))
+        r_rbc.n_ss, r_sage.n_ss, 100*(r_sage.n_ss/r_rbc.n_ss - 1))
 function compare(field, title)
-    a = getfield(r, field); b = getfield(rs, field)
+    a = getfield(r_rbc, field); b = getfield(r_sage, field)
     pl = plot(1:length(a), a, lw=2, label="RBC", c=C1, title=title, xlabel="t")
     plot!(pl, 1:length(b), b, lw=2, label="SAGE-RBC", c=C2)
     hline!(pl, [0], c=:black, lw=1, label=false); pl
@@ -265,16 +278,16 @@ plot(compare(:y,"Output"), compare(:c,"Consumption"),
      layout=(2,2), size=(820,520))
 ```
 
-The result is a near miss, and it is informative. The SAGE agent works about five
-percent fewer hours in steady state, because the social pull makes time out of work
-valuable, and earns less from each hour, because agency is below one. But the shape
-of its response to the shock is almost the shape of the RBC's response. With a single
-representative agent, agency and social cohesion move levels and leave the cycle
-nearly alone. Whatever these forces do to an economy, they do it through who is
-affected and how differently, and a representative agent has no one to be affected
-differently. So we give the model a distribution of households.
+The result is a near miss. The SAGE agent works about five percent fewer hours in
+steady state, because the social pull makes time out of work valuable, and earns less
+from each hour, because agency is below one. But the shape of its response to the
+shock is almost the shape of the RBC's response. With a single representative agent,
+agency and social cohesion move levels and leave the cycle nearly alone. Whatever
+these forces do to an economy, they do it through who is affected and how
+differently, and a representative agent has no one to be affected differently. So we
+give the model a distribution of households.
 
-## The SAGE framework
+## The SAGE Framework
 
 In the SAGE framework an agent pursues several **decision objectives** at once, one
 for each dimension of wellbeing, rather than maximising a single index. We keep two of
@@ -285,19 +298,23 @@ the sum of those contributions.
 
 **Agency**, denoted `α`, is the degree to which a person can turn effort into income.
 It stands in for labour-market security, health, and skills, and it will differ across
-households. Following the master's thesis behind this lecture (Conway 2020), agents maximise
-utility as usual and the wellbeing dimensions are read off separately at the optimum.
-The utility an agent maximises and the wellbeing we report are deliberately different
-objects, and keeping them apart is what lets the model show material gain and social
-cohesion moving in opposite directions.
+households. Following the thesis behind this lecture {cite}`conway2020`, agents
+maximise utility as usual and the wellbeing dimensions are read off separately at the
+optimum. The utility an agent maximises and the wellbeing we report are deliberately
+different objects, and keeping them apart is what lets the model show material gain
+and social cohesion moving in opposite directions.
 
-## The SAGE-Bewley model
+## The SAGE-Bewley Model
 
-We now place these ideas in a Bewley/Aiyagari economy. A unit mass of households faces
-uninsurable idiosyncratic income risk, indexed by a productivity state `z` that is low
-or high and follows a two-state Markov chain. Each period a household chooses
-consumption `c`, next-period assets $a' \ge 0$, and labour effort $e \in [0,1]$, with
-$q = 1 - e$ the social contribution.
+We now place these ideas in a Bewley-Aiyagari economy
+{cite}`bewley1986,aiyagari1994`. Readers who know QuantEcon's
+[Aiyagari lecture](https://julia.quantecon.org/multi_agent_models/aiyagari.html) will
+recognise the bones of what follows; the differences are the labour-effort margin,
+agency, and the public good. A unit mass of households faces uninsurable
+idiosyncratic income risk, indexed by a productivity state `z` that is low or high
+and follows a two-state Markov chain. Each period a household chooses consumption
+`c`, next-period assets $a' \ge 0$, and labour effort $e \in [0,1]$, with $q = 1 - e$
+the social contribution.
 
 Utility is additively separable between material gain and the social term. The
 separable form matters: it keeps the wealth effect on labour supply, and that wealth
@@ -317,18 +334,14 @@ c + a' \;=\; \alpha_z\, e\, z + R\, a, \qquad a' \ge 0 .
 $$
 
 The public good is the average contribution across the stationary distribution,
-$Q = \mathbb{E}[\,1 - e\,]$. The household problem is a Bellman equation that we solve
-by policy iteration over a discretised choice set, recover smooth policies from, and
-aggregate using the exact stationary distribution of the implied Markov chain. The
-solver is in `sage_engine.jl`.
+$Q = \mathbb{E}[\,1 - e\,]$.
 
 The interest rate $R$ is taken as given, calibrated to a long-run real rate of about
 two percent, rather than cleared by an asset market. This is an Aiyagari household
 block in partial equilibrium: the equilibrium object we solve for is the social good
-$Q$, through its fixed point, not the interest rate. The general-equilibrium close in
-which $R$ clears the capital market is left to the research versions.
+$Q$, through its fixed point, not the interest rate.
 
-### The income process
+### The Income Process
 
 Productivity $z$ follows a two-state Markov chain, the discretised primitive of the
 idiosyncratic risk that everything downstream inherits. We show it first, because the
@@ -343,18 +356,78 @@ zv, Π = income_process(p)
 @printf("stationary fractions   = [%.2f, %.2f]\n", πstat[1], πstat[2])
 ```
 
-With the primitive in hand we solve the household problem and read off its decision
-rules.
+Two states is a modelling choice, not a numerical economy. The states stand for the
+lower- and higher-education groups of the underlying thesis, which is why agency
+$\alpha_z$ and the belonging taste $B_z$ will differ across them, and why we speak of
+groups rather than shocks when reading results. The engine discretises with the same
+Rouwenhorst tool used for the RBC and solves finer chains unchanged; the education
+pair is the configuration every result below uses.
 
 Every default in `SAGEParams` is sourced. Risk aversion is 2, an elasticity of
-intertemporal substitution of one half, the meta-analytic consensus of Havranek
-(2015). The inverse Frisch is 2, a labour-supply elasticity of one half, from the
-quasi-experimental consensus of Chetty, Guren, Manoli and Weber (2011). The discount
+intertemporal substitution of one half, the meta-analytic consensus of
+{cite:t}`havranek2015`. The inverse Frisch is 2, a labour-supply elasticity of one
+half, from the quasi-experimental consensus of {cite:t}`chetty2011`. The discount
 factor and interest rate are standard annual values. And the effort disutility is set
 so the work share of committed time matches the French time-use figure of 0.53, where
 paid work averages 3h24 a day against 3h01 of unpaid domestic and associative work
-(INSEE 2010). Two facts the model was never aimed at then come out close to data:
-about a third of households live hand to mouth, and the wealth Gini is 0.55.
+{cite}`insee2010`. Two facts the model was never aimed at then come out close to
+data: about a third of households live hand to mouth {cite}`kaplan2014`, and the
+wealth Gini is 0.55.
+
+### Solving the Model
+
+The solver lives in `sage_engine.jl`, and its structure is worth seeing, because it
+is the Aiyagari algorithm with one twist at each end. Four steps.
+
+**Step 1: fold effort into the reward.** For each state $(a, z)$ and each candidate
+next-asset level $a'$, choose effort on a grid to maximise within-period utility.
+After this inner choice the household problem has a single action, next assets,
+exactly the shape of QuantEcon's Aiyagari lecture.
+
+**Step 2: solve the discrete problem.** The result is a sparse state-action-pair
+`DiscreteDP` (the QuantEcon.jl idiom), solved by policy iteration.
+
+**Step 3: recover continuous policies.** Effort comes from the discrete joint
+optimum. Next assets are then re-optimised continuously against the linearly
+interpolated continuation value, golden-section between the discrete optimum's
+neighbours. This is the same recovery step the RBC section used, for the same
+reason: without it the policies inherit the steps of the grid and so does the wealth
+distribution.
+
+**Step 4: aggregate, and close the loop.** The stationary distribution uses the
+lottery of {cite:t}`young2010`: each household's continuous savings choice is split
+across the two bracketing grid nodes, the implied sparse transition matrix is
+iterated to its fixed point, and the public good is read off as $Q = E[1-e]$. When
+the social term is behavioural, so that $Q$ feeds back into the reward, an outer
+damped fixed point on $Q$ wraps the whole solve.
+
+Abridged from `sage_engine.jl`, the skeleton is:
+
+```julia
+# 1. effort folded into the reward: one action (next assets) remains
+for i_z in 1:nz, i_a in 1:na, k in 1:na            # state (a, z), action a'
+    best = -Inf
+    for e in e_grid                                 # inner static effort choice
+        c = R*a[i_a] + α[i_z]*e*z[i_z] - a[k]
+        c <= 0 && continue
+        best = max(best, u_c(c, e) + social(e, B[i_z], Q))
+    end
+    record_state_action_pair!(best)                 # sparse triplets
+end
+
+# 2. policy iteration on the sparse DiscreteDP (QuantEcon.jl)
+ddp = DiscreteDP(Rvec, Qsparse, β, s_ind, a_ind)
+σ   = solve(ddp, PFI).sigma
+
+# 3. continuous savings against the interpolated continuation value
+a′ = golden_max(ap -> u_c(resources - ap, e⋆) + β * EV_interp(ap, z), lo, hi)
+
+# 4. Young (2010) lottery -> stationary λ -> Q = E[1-e];
+#    outer damped loop on Q when the social term is behavioural
+```
+
+With the solver in hand, we solve the default calibration and read off the decision
+rules.
 
 ```{code-cell} julia
 sol = solve_model(p)
@@ -428,13 +501,15 @@ income and education. The model's distributional tension is then a double
 disadvantage: the lower-income group both supplies less of the social fabric and,
 with $B_{low} < B_{high}$, enjoys what exists less per unit.
 
-### The wellbeing dashboard
+### The Wellbeing Dashboard
 
 We now read off the two decision objectives at the optimum and display them as a
 **balanced dashboard**, by wealth quartile within each income group. Material gain
 $U^c$ rises with wealth. Social cohesion $U^s = \Lambda B Q$ is flat within a group and
 higher for high-income households, who enjoy the public good more even though they
-supply less of it.
+supply less of it. One detail to expect in the figure: the bottom two quartiles of
+the lower group print the same bar, because the poorest half of that group sits at
+the borrowing constraint, so its quartiles coincide.
 
 ```{code-cell} julia
 function dashboard(sol)
@@ -465,7 +540,7 @@ plot(gbar(Uc; title="Material gain by quartile"),
      gbar(Us; title="Social cohesion by quartile"), layout=(1,2))
 ```
 
-### A policy experiment and the decoupling
+### A Policy Experiment and the Decoupling
 
 A government wants people in work, so it subsidises work: a make-work-pay subsidy of
 20 percent on labour income, financed by a lump-sum tax so that the budget balances.
@@ -520,14 +595,14 @@ social cost and who bears it. The model makes no claim that the policy is wrong;
 claim is about measurement, because a single index cannot see what the policy trades
 away or from whom.
 
-### Country calibrations
+### Country Calibrations
 
 The defaults above are the French calibration. The engine carries seven country rows
-calibrated to the same standardised pipeline (OECD How's Life for the agency and
-belonging gradients, World Inequality Database for the wealth Gini, Kaplan-Violante-
-Weidner for the hand-to-mouth share, Multinational Time Use Study for the work share,
-World Values Survey Wave 7 for the participation gradient). Sourcing of every row is
-documented in CALIBRATION_PIPELINE.md in the public repository.
+calibrated to one standardised pipeline: OECD How's Life for the agency and belonging
+gradients, the World Inequality Database for the wealth Gini, {cite:t}`kaplan2014`
+for the hand-to-mouth share, the Multinational Time Use Study for the work share, and
+the World Values Survey for the participation gradient, with the full sourcing
+documented in the research repository.
 
 ```{code-cell} julia
 println("countries available: ", join(sort(collect(keys(COUNTRIES))), ", "))
@@ -541,17 +616,15 @@ function row(code)
     p = country_params(code)
     s = solve_model(p)
     tg = country_targets(code)
-    (code = code, e = sum(s.λ .* s.e), Q = s.Q,
-     wg = wealth_gini(s), ig = income_gini(s),
-     htm = frac_constrained(s), tg = tg)
+    (code = code, Q = s.Q, wg = wealth_gini(s), htm = frac_constrained(s), tg = tg)
 end
 results = [row(c) for c in ("FR","DE","IT","US","CO","ZA","CN")]
 @printf("%-3s | %-12s | %-12s | %-12s | %-12s\n",
         "cty","work share","wealth Gini","HtM share","Q (fabric)")
-for r in results
+for rw in results
     @printf("%-3s |  %.2f / %.2f |  %.2f / %.2f |  %.2f / %.2f |  %.3f\n",
-            r.code, 1 - r.Q, r.tg.work_share,
-            r.wg, r.tg.wealth_gini, r.htm, r.tg.htm, r.Q)
+            rw.code, 1 - rw.Q, rw.tg.work_share,
+            rw.wg, rw.tg.wealth_gini, rw.htm, rw.tg.htm, rw.Q)
 end
 ```
 
@@ -560,11 +633,9 @@ share is in the right neighbourhood for the OECD members and undershoots for the
 developing countries, where the one-asset Bewley structure cannot simultaneously
 deliver a very high hand-to-mouth share and a very high wealth Gini. The wealth Gini
 itself is a known limitation of one-asset models: standard calibrations of this class
-reach 0.38 or so; v1.1 reaches 0.55 for the European calibrations, which is closer to
-data without yet matching the very high Ginis of the United States or South Africa.
-Closing that gap is the planned two-asset extension along Kaplan and Violante. The
-participation gradient, for the S+A paper, is matched country by country in a separate
-calibration of the participation model; see the working paper.
+reach 0.38 or so; this one reaches 0.55 for the European calibrations, which is
+closer to data without yet matching the very high Ginis of the United States or South
+Africa. Closing that gap is a two-asset extension along {cite:t}`kaplan2014`.
 
 ```{code-cell} julia
 # a country-switch demo: re-run the policy experiment with the German calibration
@@ -582,26 +653,32 @@ Switch the country by changing `"DE"`. Every country row is one call to
 
 ## Exercises
 
-Everything needed for these is already loaded. Try each one before reading the
+Everything needed for these is already loaded. Try each one before opening the
 solution.
 
-**Exercise 1.** The SAGE-RBC switched on two things at once, agency and the social
-pull. Separate them: solve the model with agency alone (`αa = 0.85`) and with the
-social pull alone (`Λ = 0.30, B = 0.85`). Which switch moves the level of steady-state
-hours, and which moves the response of hours to the shock?
+```{exercise}
+:label: sage-ex1
 
-**Solution.**
+The SAGE-RBC switched on two things at once, agency and the social pull. Separate
+them: solve the model with agency alone (`αa = 0.85`) and with the social pull alone
+(`Λ = 0.30, B = 0.85`). Which switch moves the level of steady-state hours, and
+which moves the response of hours to the shock?
+```
+
+```{solution-start} sage-ex1
+:class: dropdown
+```
 
 ```{code-cell} julia
 r_agency = irf(solve_rbc(αa = 0.85))
 r_social = irf(solve_rbc(Λ = 0.30, B = 0.85))
 @printf("steady-state hours:  RBC %.4f | agency only %.4f | social only %.4f | both %.4f\n",
-        r.n_ss, r_agency.n_ss, r_social.n_ss, rs.n_ss)
+        r_rbc.n_ss, r_agency.n_ss, r_social.n_ss, r_sage.n_ss)
 pl = plot(title = "Labour response by channel", xlabel = "t", ylabel = "percent")
-plot!(pl, r.n, lw = 2, label = "RBC", c = C1)
+plot!(pl, r_rbc.n, lw = 2, label = "RBC", c = C1)
 plot!(pl, r_agency.n, lw = 2, label = "agency only", c = C3)
 plot!(pl, r_social.n, lw = 2, label = "social pull only", c = C4)
-plot!(pl, rs.n, lw = 2, label = "both", c = C2)
+plot!(pl, r_sage.n, lw = 2, label = "both", c = C2)
 hline!(pl, [0], c = :black, lw = 1, label = false); pl
 ```
 
@@ -612,12 +689,21 @@ cancel, a classic result. And all four responses to the shock are similar, which
 repeats the section's message from a different angle: with a representative agent
 these forces live in the levels, and it takes heterogeneity to make them bite.
 
-**Exercise 2.** The Bewley calibration sets the discount factor and the interest rate
-jointly, with $\beta R$ well inside one. Re-solve the baseline with `R = 1.03` and
-compare the share of households at the constraint and the wealth Gini. What should
-happen as $\beta R$ approaches one?
+```{solution-end}
+```
 
-**Solution.**
+```{exercise}
+:label: sage-ex2
+
+The Bewley calibration sets the discount factor and the interest rate jointly, with
+$\beta R$ well inside one. Re-solve the baseline with `R = 1.03` and compare the
+share of households at the constraint and the wealth Gini. What should happen as
+$\beta R$ approaches one?
+```
+
+```{solution-start} sage-ex2
+:class: dropdown
+```
 
 ```{code-cell} julia
 solR = solve_model(update(p; R = 1.03))
@@ -634,11 +720,20 @@ level diverges and the stationary distribution starts piling mass on whatever ce
 the grid imposes, which is why the top-grid check exists and why the calibration keeps
 the product safely inside one.
 
-**Exercise 3.** Run the financed 20 percent subsidy for the United States row and
-compare the decoupling with France. The rows differ in the agency gap, the belonging
-tastes, and the cohesion weight. Which effects change size?
+```{solution-end}
+```
 
-**Solution.**
+```{exercise}
+:label: sage-ex3
+
+Run the financed 20 percent subsidy for the United States row and compare the
+decoupling with France. The rows differ in the agency gap, the belonging tastes, and
+the cohesion weight. Which effects change size?
+```
+
+```{solution-start} sage-ex3
+:class: dropdown
+```
 
 ```{code-cell} julia
 for code in ("FR", "US")
@@ -654,50 +749,28 @@ The signs are the portable result: every calibration decouples the same way. The
 sizes move with the row, and tracing a size difference back to a parameter difference
 is a useful way to learn what each dial does.
 
-## Where this goes next
+```{solution-end}
+```
 
-This lecture compares stationary economies rather than full transitions, and it uses
-the simplest behavioural form of the social term. The research versions of this model,
-which share the engine used here, go further in three directions: a discrete
-participation margin in the tradition of discrete choice with social interactions,
-where activation policy is amplified by the social feedback; a homophily channel in
-which belonging is drawn from one's own group, which segregates cohesion across
-education groups; and the planned general-equilibrium close. The companion working
-papers report those results, with every parameter sourced or calibrated to a stated
-data target.
+## Final Remarks
 
-This page and its vendored solver live in their own repository, linked at the top of
-the page. The research programme behind it, the maintained engine, the working
-papers, the calibration data, and an interactive Pluto notebook, lives at
+This lecture compares stationary economies rather than full transitions, uses the
+simplest behavioural form of the social term, and holds the interest rate fixed.
+Natural extensions run in three directions: a discrete participation margin in the
+tradition of discrete choice with social interactions, where activation policy is
+amplified by the social feedback; a homophily channel in which belonging is drawn
+from one's own group, which segregates cohesion across education groups; and the
+general-equilibrium close in which $R$ clears the capital market.
+
+On provenance: the model is from my master's thesis {cite}`conway2020`, which
+operationalised the SAGE framework of {cite:t}`limademiranda2020` in a
+heterogeneous-agent economy. This page and its vendored solver live at
+[github.com/conway1521/sage-bewley](https://github.com/conway1521/sage-bewley); the
+maintained engine, the calibration data and its sourcing, and an interactive Pluto
+notebook live in the research repository,
 [github.com/conway1521/sage_macro](https://github.com/conway1521/sage_macro).
 
 ## References
 
-Aiyagari, S. Rao (1994). Uninsured idiosyncratic risk and aggregate saving.
-*Quarterly Journal of Economics* 109(3), 659-684.
-
-Bewley, Truman (1986). Stationary monetary equilibrium with a continuum of
-independently fluctuating consumers. In *Contributions to Mathematical Economics in
-Honor of Gerard Debreu*, North-Holland.
-
-Chetty, Raj, Adam Guren, Day Manoli and Andrea Weber (2011). Are micro and macro
-labor supply elasticities consistent? A review of evidence on the intensive and
-extensive margins. *American Economic Review* 101(3), 471-475.
-
-Conway, Alessandro (2020). Wellbeing and macroeconomics: a SAGE approach. Master's
-thesis, Sciences Po Paris.
-
-Havranek, Tomas (2015). Measuring intertemporal substitution: the importance of
-method choices and selective reporting. *Journal of the European Economic
-Association* 13(6), 1180-1204.
-
-INSEE (2010). Enquête Emploi du temps 2009-2010.
-
-Kaplan, Greg, Giovanni L. Violante and Justin Weidner (2014). The wealthy
-hand-to-mouth. *Brookings Papers on Economic Activity*, Spring, 77-138.
-
-Lima de Miranda, Katharina and Dennis J. Snower (2020). Recoupling economic and
-social prosperity. *Global Perspectives* 1(1).
-
-Rouwenhorst, K. Geert (1995). Asset pricing implications of equilibrium business
-cycle models. In *Frontiers of Business Cycle Research*, Princeton University Press.
+```{bibliography}
+```

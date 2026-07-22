@@ -15,6 +15,9 @@ parse:
     - dollarmath
     - colon_fence
 
+bibtex_bibfiles:
+  - references.bib
+
 repository:
   url: https://github.com/conway1521/sage-bewley
 
@@ -24,9 +27,12 @@ html:
   home_page_in_navbar: false
 
 sphinx:
+  extra_extensions:
+    - sphinx_exercise
   config:
     html_title: "SAGE Bewley"
     mathjax_path: https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+    bibtex_reference_style: author_year
     html_theme_options:
       show_navbar_depth: 1
       repository_url: https://github.com/conway1521/sage-bewley
