@@ -1,0 +1,5 @@
+# Python build toolchain for the SAGE-Bewley lecture site.
+# Use Python 3.11 (3.13 removed the imghdr stdlib module that Sphinx 5 needs).
+#   python3.11 -m venv .venv && .venv/bin/pip install -r requirements.txt
+jupyter-book==0.15.1
+quantecon-book-theme==0.8.2
