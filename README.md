@@ -43,6 +43,15 @@ julia --project=. -e 'using Pkg; Pkg.instantiate();
 
 The result is static HTML in `_build/html`.
 
+## Gallery Notebook
+
+`make_gallery.py` rewrites the MyST-specific syntax (citation roles, exercise
+directives) as plain Markdown, and jupytext turns the result into
+`sage_bewley_wellbeing.ipynb`, the executed, self-contained notebook prepared for
+QuantEcon's notebook gallery. The notebook fetches `sage_engine.jl` from this
+repository if it is not sitting next to it, so it runs anywhere with the Julia
+kernel installed.
+
 ## Deploy
 
 `bash deploy_site.sh` publishes the built site to this repository's `gh-pages`
