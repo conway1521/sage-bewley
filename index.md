@@ -66,6 +66,14 @@ C1, C2, C3, C4 = "#1f77b4", "#ff7f0e", "#2ca02c", "#9467bd"
 BLUE, ORANGE = C1, C2;          # low income, high income (thesis colours)
 ```
 
+Two of the engine's diagnostics are worth distinguishing before we use them.
+`frac_constrained` reports the mass sitting on the lowest asset node, which is
+useful for checking that the borrowing constraint binds but is a grid cell rather
+than an economic set, so it shrinks as the asset grid is refined.
+`hand_to_mouth` reports the share holding less than four weeks of mean labour
+income in wealth, the threshold {cite:t}`kaplan2014` use, which does not move with
+the grid. It is the second one we report.
+
 ## The Neoclassical Growth Model
 
 A representative household maximises $\sum_{t} \beta^t \log c_t$ subject to the
@@ -450,7 +458,10 @@ assets. The savings rule $a'(a,z)$ starts at the borrowing constraint and rises,
 the 45-degree line from just below: the near-unit $\beta R$ gives a high target, so
 households accumulate slowly and the gap from 45 degrees is what produces the long right
 tail of the distribution. At the low end the low-income state sits against the constraint
-$a' = 0$, which is the hand-to-mouth mass. That the stationary distribution puts zero
+$a' = 0$. Those households are hand to mouth, though the corner is not itself the
+measure of it: the share reported above counts households holding less than four
+weeks of income in wealth, which is a set that does not move when the grid is
+refined. That the stationary distribution puts zero
 weight on the top grid point, reported below, confirms the grid is wide enough that this
 tail is resolved rather than truncated. The effort policy carries the model's
 central intuition: effort falls with wealth, because wealthier households have a lower
@@ -485,7 +496,7 @@ plot(pa, pl, pb, layout=(1,3), size=(980,300))
 
 ```{code-cell} julia
 @printf("Gini (wealth)          = %.3f\n", wealth_gini(sol))
-@printf("Share at constraint    = %.1f%%\n", 100*frac_constrained(sol))
+@printf("Hand to mouth          = %.1f%%  (wealth below four weeks of income)\n", 100*hand_to_mouth(sol))
 @printf("Public good size Q     = %.3f, supplied %.0f%% by low income\n",
         sol.Q, 100*public_good_shares(sol)[1])
 @printf("Mass at top grid point = %.1e  (a numerical check: ~0 means the asset\n",
@@ -564,7 +575,7 @@ function solve_financed(p; subsidy = 0.0, tol = 1e-5, maxit = 40)
     end
     sol
 end
-pw   = update(p; social_mode = :warmglow, social_strength = 1.0)
+pw   = update(p; ne = 320, social_mode = :warmglow, social_strength = 1.0)
 s0   = solve_financed(pw; subsidy = 0.0)
 s1   = solve_financed(pw; subsidy = 0.20)
 agg(s, M) = sum(s.λ .* M)
@@ -595,6 +606,24 @@ social cost and who bears it. The model makes no claim that the policy is wrong;
 claim is about measurement, because a single index cannot see what the policy trades
 away or from whom.
 
+```{note}
+**A word on numerical accuracy.** Effort is chosen from a discrete grid, so the
+public good $Q = E[1-e]$ inherits that grid's resolution and any small change in it
+is read off steps rather than a smooth function. The policy cell above therefore
+raises `ne` to 320 from the default 40, at which point the magnitudes have settled;
+at the default the direction is right but the size of the fall in $Q$ is understated.
+The default is left in place elsewhere, where the quantities of interest are levels
+rather than small differences in effort. A smaller sensitivity to the alignment of
+the asset grid survives even then, worth about a quarter of a percentage point on
+$Q$, so read the fall in the public good as five percent rather than as its third
+digit. The same alignment moves the hand-to-mouth share reported above from 0.33 at
+this asset grid to about 0.31 on much finer ones. Two other checks are worth stating: the
+Euler-equation errors on the interior of the state space are below $10^{-3}$ in
+consumption units, and the stationary distribution reproduces itself under the
+transition to machine precision. A companion note in the model repository records
+these checks in full.
+```
+
 ### Country Calibrations
 
 The defaults above are the French calibration. The engine carries seven country rows
@@ -616,7 +645,7 @@ function row(code)
     p = country_params(code)
     s = solve_model(p)
     tg = country_targets(code)
-    (code = code, Q = s.Q, wg = wealth_gini(s), htm = frac_constrained(s), tg = tg)
+    (code = code, Q = s.Q, wg = wealth_gini(s), htm = hand_to_mouth(s), tg = tg)
 end
 results = [row(c) for c in ("FR","DE","IT","US","CO","ZA","CN")]
 @printf("%-3s | %-12s | %-12s | %-12s | %-12s\n",
@@ -707,10 +736,10 @@ $\beta R$ approaches one?
 
 ```{code-cell} julia
 solR = solve_model(update(p; R = 1.03))
-@printf("R = 1.02: Gini %.3f, at constraint %.1f%%\n",
-        wealth_gini(sol), 100*frac_constrained(sol))
-@printf("R = 1.03: Gini %.3f, at constraint %.1f%%\n",
-        wealth_gini(solR), 100*frac_constrained(solR))
+@printf("R = 1.02: Gini %.3f, hand to mouth %.1f%%\n",
+        wealth_gini(sol), 100*hand_to_mouth(sol))
+@printf("R = 1.03: Gini %.3f, hand to mouth %.1f%%\n",
+        wealth_gini(solR), 100*hand_to_mouth(solR))
 @printf("mass at top grid point: %.1e\n", sum(solR.λ[end, :]))
 ```
 

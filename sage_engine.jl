@@ -46,7 +46,8 @@ module SAGEBewley
 using QuantEcon, LinearAlgebra, Statistics, SparseArrays
 
 export SAGEParams, SAGESolution, solve_model, exponential_grid, income_process,
-       wealth_gini, income_gini, frac_constrained, public_good_shares, update,
+       wealth_gini, income_gini, frac_constrained, hand_to_mouth,
+       public_good_shares, update,
        country_params, country_targets, country_participation,
        COUNTRIES, COUNTRY_TARGETS, group_means
 
@@ -582,9 +583,31 @@ end
 # ----------------------------------------------------------------------------
 # Convenience diagnostics
 # ----------------------------------------------------------------------------
-"Fraction of agents at (essentially) the borrowing constraint (mass at lowest node)."
+"""
+Fraction of agents at (essentially) the borrowing constraint, as mass on the
+lowest `nodes` asset points. This is a grid diagnostic, not an economic
+statistic: the set it measures is a grid cell, so the number shrinks as `na`
+rises. Use it to check that the constraint binds; use `hand_to_mouth` for
+anything reported as a hand-to-mouth share.
+"""
 frac_constrained(s::SAGESolution; nodes = 1) =
     sum(s.λ[1:nodes, :])
+
+"""
+    hand_to_mouth(s; weeks = 4.0)
+
+Share of households holding less than `weeks` of mean labour income in wealth,
+the threshold definition used by Kaplan, Violante and Weidner (2014). Unlike
+`frac_constrained` the threshold is an economic quantity, so the answer is
+stable under grid refinement.
+"""
+function hand_to_mouth(s::SAGESolution; weeks = 4.0)
+    p = s.p
+    minc = sum(s.λ[ia, iz] * p.α[iz] * s.e[ia, iz] * s.z_vals[iz]
+               for iz in 1:p.nz, ia in 1:p.na)
+    thr = (weeks / 52) * minc
+    sum(s.λ[ia, iz] for iz in 1:p.nz, ia in 1:p.na if s.a_grid[ia] < thr)
+end
 
 "Share of the public good Q supplied by each income state (sums to 1)."
 function public_good_shares(s::SAGESolution)
