@@ -356,7 +356,7 @@ idiosyncratic risk that everything downstream inherits. We show it first, becaus
 shape of the wealth distribution is a consequence of it.
 
 ```{code-cell} julia
-p = SAGEParams()
+p = country_params("FR")   # the calibrated French row, as in the papers
 zv, Π = income_process(p)
 πstat = vec((Π^1000)[1, :])
 @printf("productivity states  z = [%.3f, %.3f]\n", zv[1], zv[2])

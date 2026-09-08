@@ -111,7 +111,7 @@ Base.@kwdef struct SAGEParams
     a_min::Float64 = 1e-10
     a_max::Float64 = 100.0
     na::Int     = 200
-    pexp::Float64 = 1.5
+    pexp::Float64 = 4.0      # 2026-09-08: was 1.5; see VERIFICATION.md stage 5
     # effort grid
     ne::Int     = 60
     # aggregate productivity multiplier (1.0 = stationary; shock raises it)
